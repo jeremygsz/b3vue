@@ -7,8 +7,9 @@
 
         <h1 v-if="user">{{ user.displayName }}</h1>
         <transition-group name="list" tag="ul">
-            <li v-for="item in tablo" v-bind:key="item.ts">
-                {{ item.ts }} : {{ item.displayName }} : {{ item.message }}
+            <li v-for="item in markdownTablo" v-bind:key="item.ts">
+                {{ item.ts }} : {{ item.displayName }} :
+                <span v-html="item.message" />
             </li>
         </transition-group>
         <form v-if="user" @submit="tamerelapute">
@@ -20,6 +21,7 @@
 
 <script>
     import firebase from 'firebase'
+    import marked from 'marked'
 
     export default {
         name: 'HelloWorld',
@@ -43,6 +45,7 @@
                         displayName: this.user.displayName,
                         message: this.message.toString()
                     }
+
                     firebase.database().ref('messages/').push(entry, (error) => {
                         if (error) {
                             alert("dla merde")
@@ -65,9 +68,24 @@
                 firebase.auth().signOut()
             }
         },
+        computed: {
+            markdownTablo: function () {
+                return (this.tablo).map(entry => {
+                    return ({
+                        ts: entry.ts,
+                        uid: entry.uid,
+                        displayName: entry.displayName,
+                        message: marked((entry.message).toString(), { sanitize: true })
+                    })
+                })
+
+            }
+        },
         mounted: function () {
             firebase.database().ref('messages/').on('value', snapshot => {
-                this.tablo = snapshot.val()
+                if (snapshot.val() !== null){
+                    this.tablo = Object.values(snapshot.val())
+                }
             });
             firebase.auth().onAuthStateChanged(user => {
                 if (user) {
