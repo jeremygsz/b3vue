@@ -8,11 +8,13 @@
         <h1 v-if="user">{{ user.displayName }}</h1>
         <transition-group name="list" tag="ul">
             <li v-for="item in markdownTablo" v-bind:key="item.ts">
-                {{ item.ts }} : {{ item.displayName }} :
-                <span v-html="item.message" />
+                {{ item.ts }} : {{ item.displayName }}
+                <div v-html="item.message"/>
             </li>
         </transition-group>
+        <canvas ref="imgCanvas"></canvas>
         <form v-if="user" @submit="tamerelapute">
+            <input type="file" ref="fileInput" @change="loadFile">
             <input v-model="message" placeholder="texte">
             <input type="submit" value="Submit">
         </form>
@@ -55,7 +57,35 @@
                         }
                     });
                 }
-                e.preventDefault();
+                e && e.preventDefault();
+            },
+            loadFile: function (event) {
+                if(event.target.files[0]) {
+                    const file = event.target.files[0];
+                    //const reader = new FileReader();
+                    // TODO : check si c'est une image
+                    let img = new Image;
+                    img.src = URL.createObjectURL(file);
+                    img.onload = () => {
+                        let canvas = this.$refs['imgCanvas']
+                        let ctx = canvas.getContext('2d')
+                        ctx.drawImage(img, 0, 0, img.width, img.height, 0, 0, 200, 100)
+                        canvas.toBlob(blob => {
+                            // inject into storage then send msg
+                            firebase.storage().ref('images/').child(file.name)
+                                .put(blob)
+                                .then(snapshot => {
+                                    snapshot.ref.getDownloadURL()
+                                        .then(downloadURL => {
+                                            this.message = "![prout](" + downloadURL + ")"
+                                            this.tamerelapute()
+                                            // TODO : cleanup canvas && fileinput
+                                        });
+                                })
+
+                        }, 'image/webp', 0.8)
+                    };
+                }
             },
             login: function () {
 
@@ -75,7 +105,7 @@
                         ts: entry.ts,
                         uid: entry.uid,
                         displayName: entry.displayName,
-                        message: marked((entry.message).toString(), { sanitize: true })
+                        message: marked((entry.message).toString(), {sanitize: true})
                     })
                 })
 
@@ -83,7 +113,7 @@
         },
         mounted: function () {
             firebase.database().ref('messages/').on('value', snapshot => {
-                if (snapshot.val() !== null){
+                if (snapshot.val() !== null) {
                     this.tablo = Object.values(snapshot.val())
                 }
             });
