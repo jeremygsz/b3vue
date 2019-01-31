@@ -57,6 +57,7 @@
                         }
                     });
                 }
+                // if(e){e.preventDefault()};
                 e && e.preventDefault();
             },
             loadFile: function (event) {
